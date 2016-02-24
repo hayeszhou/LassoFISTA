@@ -1,5 +1,5 @@
 ### Lasso FISTA: main example
-### 15 fevrier 2016
+### 15 fevrier 2016, edited 24 fevrier
 ### J L'Hour
 
 ### Set working directory

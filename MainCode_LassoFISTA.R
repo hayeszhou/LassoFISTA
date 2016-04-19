@@ -1,9 +1,9 @@
-### Lasso FISTA: main example
+﻿### Lasso FISTA: main example
 ### 15 fevrier 2016
 ### J L'Hour
 
 ### Set working directory
-setwd("//ulysse/users/JL.HOUR/1A_These/Lasso_FISTA") 
+setwd("//ulysse/users/JL.HOUR/1A_These/LassoFISTA") 
 
 rm(list=ls())
 set.seed(30031987)
@@ -23,7 +23,7 @@ library("reshape2")
 library("ggplot2")
 
 ### 1. Lalonde Dataset
-load("dataset/LalondeData_Unscaled.R")
+load("dataset/Lalondedata_Unscaled.R")
 
 X <- data$X
 W_Lasso <- as.vector(data$W)
@@ -45,29 +45,29 @@ lambda <- c*qnorm(1-.5*g/p)/sqrt(n)
 W_Lasso <- W_Lasso*sum(d)
 m_y <- c(t(W_Lasso)%*%y/sum(W_Lasso))
 
-psi0 <- as.vector(sqrt( t(W_Lasso*(y-m_y)^2) %*% (diag(sqrt(W_Lasso))%*%X)^2 / n ))
+psi0 <- diag(as.vector(sqrt( t(W_Lasso*(y-m_y)^2) %*% (diag(sqrt(W_Lasso))%*%X)^2 / n )))
 
 
 Lassofit_vanilla <- LassoFISTA(betaInit=rep(0,p),y,X,W=(1-d),
-                           nopen=1,lambda,psi=rep(1,p),
+                           nopen=1,lambda,
                            tol=1e-6,maxIter=1e6,trace=T)
 
 Lassofit_pen <- LassoFISTA(betaInit=rep(0,p),y,X,W=W_Lasso,
-                          nopen=1,lambda,psi=rep(1,p),
+                          nopen=1,lambda,
                           tol=1e-6,maxIter=1e6,trace=T)
 
-Lassofit_penpen <- LassoFISTA(betaInit=rep(0,p),y,X,W=W_Lasso,
-                           nopen=1,lambda,psi=psi0,
+Lassofit_penpen <- LassoFISTA(betaInit=rep(0,p),y,X%*%solve(psi0),W=W_Lasso,
+                           nopen=1,lambda,
                            tol=1e-6,maxIter=1e6,trace=T)
 
-coefdata <- data.frame(cbind(Lassofit_vanilla$beta,Lassofit_pen$beta,Lassofit_penpen$beta))
+coefdata <- data.frame(cbind(Lassofit_vanilla$beta,Lassofit_pen$beta,solve(psi0)%*%Lassofit_penpen$beta))
 coefdata[,"id"] <- 1:p
 
 
 coefdatamelt=melt(coefdata, id='id')
 ggplot(coefdatamelt,aes(id,value, group=variable, color=variable))+geom_point()
 
-### Nombre de variable selectionné par chacun des modeles
+### Nombre de variable selectionnees par chacun des modeles
 signaldata <- data.frame(cbind(Lassofit_vanilla$beta!=0,
                                Lassofit_pen$beta!=0,
                                Lassofit_penpen$beta!=0))
@@ -78,7 +78,7 @@ signaldatamelt=melt(signaldata, id='id')
 ggplot(signaldatamelt,aes(id,value, group=variable, color=variable))+geom_point()
 
 
-### Correlation entre les predictions des trois modeles pour les non traités
+### Correlation entre les predictions des trois modeles pour les non traites
 predictdata <- data.frame(cbind(X%*%Lassofit_vanilla$beta,
                              X%*%Lassofit_pen$beta,
                              X%*%Lassofit_penpen$beta))
@@ -124,7 +124,7 @@ fit2 <- LassoFISTA(betaInit=rep(0,p),y,X,W=rep(1,nrow(X)),
                   tol=1e-8,maxIter=1000,trace=T)
 fit3 <- LassoFISTA(betaInit=rep(0,p),y,X,W=rep(1,nrow(X)),
                    nopen=c(1,2,p),lambda,
-                   tol=1e-8,maxIter=1000,trace=T)
+                   tol=1e-8,maxIter=1e5,trace=T)
 # Function value
 c(fit$value,fit2$value,fit3$value)
 
@@ -150,18 +150,18 @@ W_Lasso <- W_Lasso/sum(W_Lasso) * sum(d)
 plot(W_Lasso)
 
 m_y <- c(t(W_Lasso)%*%y/sum(W_Lasso))
-psi0 <- as.vector(sqrt( t(W_Lasso*(y-m_y)^2) %*% (diag(sqrt(W_Lasso))%*%X)^2 / n ))
+psi0 <- diag(as.vector(sqrt( t(W_Lasso*(y-m_y)^2) %*% (diag(sqrt(W_Lasso))%*%X)^2 / n )))
 
 
-penload_fit <- LassoFISTA(betaInit=rep(0,p),y,X,W=W_Lasso,
-                  nopen=NULL,lambda, psi=psi0,
+penload_fit <- LassoFISTA(betaInit=rep(0,p),y,X%*%solve(psi0),W=W_Lasso,
+                  nopen=NULL,lambda,
                   tol=1e-6,maxIter=1000,trace=T)
-penload_fit2 <- LassoFISTA(betaInit=rep(0,p),y,X,W=W_Lasso,
-                   nopen=1,lambda,psi=psi0,
+penload_fit2 <- LassoFISTA(betaInit=rep(0,p),y,X%*%solve(psi0),W=W_Lasso,
+                   nopen=1,lambda,
                    tol=1e-6,maxIter=1000,trace=T)
-penload_fit3 <- LassoFISTA(betaInit=rep(0,p),y,X,W=W_Lasso,
-                   nopen=c(1,2,p),lambda,psi=psi0,
-                   tol=1e-6,maxIter=1000,trace=T)
+penload_fit3 <- LassoFISTA(betaInit=rep(0,p),y,X%*%solve(psi0),W=W_Lasso,
+                   nopen=c(1,2,p),lambda,
+                   tol=1e-6,maxIter=1e5,trace=T)
 # Function value
 c(penload_fit$value,penload_fit2$value,penload_fit3$value)
 
@@ -174,49 +174,3 @@ c(sum(abs(penload_fit$beta-c(0,dataset$b))),
 c(sum((penload_fit$beta-c(0,dataset$b))^2),
   sum((penload_fit2$beta-c(0,dataset$b))^2),
   sum((penload_fit3$beta-c(0,dataset$b)))^2)
-
-
-
-#####################
-#####################
-#####################
-## ORT func Test   ##
-#####################
-#####################
-#####################
-
-### Load user-defined functions
-source("functions/DataSim_LassoTest.R") 
-source("functions/LassoFISTA.R")
-source("functions/ORTReg_Test.R")
-
-library("MASS")
-library("reshape2")
-library("ggplot2")
-
-load("dataset/LalondeData_Unscaled.R")
-
-X <- data$X
-W_Lasso <- as.vector(data$W)
-y <- data$y
-d <- data$d
-
-n <- nrow(X)
-p <- ncol(X)
-
-beta0 <- c(log(sum(d)/sum(1-d)),rep(0,p-1))
-
-W0 = (1-d)*exp(X%*%beta0)
-
-
-Lalondefit <- ORTReg_Test(y,d,X,beta0,method="WLSLasso",
-                        c=5*sd(y), nopenset=c(1),
-                        maxIterPen=1e3,maxIterLasso=1e6,tolLasso=1e-6,PostLasso=T,trace=T)
-
-### Treatment eval
-eps <- y - X%*%Lalondefit$muLasso
-c(t(W0)%*%eps/sum(W0))
-
-pi <- mean(d)
-theta <- sum(d*eps)/sum(d) - sum(W_Lasso*sum(d)*eps)/sum(W_Lasso*sum(d))
-print(theta)

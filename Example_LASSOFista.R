@@ -5,6 +5,7 @@
 ### Set working directory
 rm(list=ls())
 set.seed(30031989)
+setwd("//ulysse/users/JL.HOUR/1A_These/LassoFISTA") 
 
 
 ### 0. Settings
@@ -15,8 +16,9 @@ library("reshape2")
 library("ggplot2")
 
 ### Load user-defined functions
-source("functions/DataSim_LassoTest.R") 
+source("functions/DataSim.R") 
 source("functions/LassoFISTA.R")
+source("functions/RidgeFISTA.R")
 
 
 #####################
@@ -29,7 +31,7 @@ source("functions/LassoFISTA.R")
 
 
 ### 1. Simulate data
-dataset <- DataSim(n=200,p=500,Ry=.05,Rd=.2, rho=.995)
+dataset <- DataSim(n=500,p=5,Ry=.5,Rd=.2, rho=.5)
 y <- dataset$y
 X <- dataset$X
 d <- dataset$d
@@ -64,3 +66,11 @@ c(sum(abs(fit$beta-c(0,dataset$b))),
 c(sum((fit$beta-c(0,dataset$b))^2),
   sum((fit2$beta-c(0,dataset$b))^2),
   sum((fit3$beta-c(0,dataset$b)))^2)
+
+
+### Ridge test
+fit <- RidgeFISTA(betaInit=rep(0,p),y,X,W=rep(1,nrow(X)),
+                  nopen=NULL,lambda,
+                  tol=1e-6,maxIter=1000,trace=T)
+
+analsol <- solve(t(X)%*%X + lambda*diag(p)) %*% (t(X)%*%y)

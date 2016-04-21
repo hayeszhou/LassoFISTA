@@ -1,10 +1,10 @@
-#' Computes Lasso solution with FISTA
+#' Computes RIDGE solution with FISTA
 #'
-#' Computes the Lasso solution using the FISTA method of Beck and Teboulle (2014).
-#' The objective function is given as the mean squared plus lambda times the L1-norm.
+#' Computes the RIDGE solution using the FISTA method of Beck and Teboulle (2014).
+#' The objective function is given as the mean squared plus lambda times the L2-norm.
 #' Penalty-loadings for each coefficients are not allowed because the algorithm does not converge
 #' in that case.
-#' Last edited: 19 avril 2016.
+#' Last edited: 21 avril 2016.
 #' 
 #' @param betaInit Starting value for the coefficient. SHould be a vector of dim ncol(X). 
 #' @param y vector of the dependent variable, normalizing it is a good idea.
@@ -19,14 +19,14 @@
 #' @return beta argmin of the function.
 #' @return value Value of the function at argmin.
 #' @return loss Value of mean squared error.
-#' @return l1norm l1-norm of beta.
+#' @return l2norm l2-norm of beta.
 #' @return nbIter Number of iterations necessary for convergence.
 #' @return ConvergenceFISTA 0 if convergence, -555 if not.
 #' 
 #' @author Jeremy Lhour
 
 
-LassoFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
+RidgeFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
                         nopen=NULL,lambda,
                         tol=1e-8,maxIter=1000,trace=F){
   # Observation weighting
@@ -56,28 +56,26 @@ LassoFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
     v <- (1-delta)*beta + delta*betaO
     
     # Show objective function value
-    if(trace==T & k%%100 == 0){ print(paste("Objective Func. Value at iteration",k,":",LassoObj(beta,y,X,lambda,nopen))) }
+    if(trace==T & k%%100 == 0){ print(paste("Objective Func. Value at iteration",k,":",RidgeObj(beta,y,X,lambda,nopen))) }
     
     # Break if diverges
-    if(is.na(LassoObj(beta,y,X,lambda,nopen) - LassoObj(betaO,y,X,lambda,nopen))){
+    if(is.na(RidgeObj(beta,y,X,lambda,nopen) - RidgeObj(betaO,y,X,lambda,nopen))){
       cv <- -555
-      print("LassoFISTA did not converge")
+      print("RidgeFISTA did not converge")
       break
-    } else if(sum(abs(LassoObj(beta,y,X,lambda,nopen)-LassoObj(betaO,y,X,lambda,nopen))) < tol || k > maxIter) break
-    
-    # if(sum(abs(beta-betaO)) < tol || k > maxIter) break
+    } else if(sum(abs(RidgeObj(beta,y,X,lambda,nopen)-RidgeObj(betaO,y,X,lambda,nopen))) < tol || k > maxIter) break
     
   }
   # line 66 has been change to change the stopping criterion
   if(k > maxIter){
-    print("Max. number of iterations reach in Lasso minimization.")
+    print("Max. number of iterations reach in Ridge minimization.")
     cv <- -555
   } 
   
   return(list(beta=as.vector(beta),
-              value=LassoObj(beta,y,X,lambda,nopen),
+              value=RidgeObj(beta,y,X,lambda,nopen),
               loss=LeastSq(beta,y,X),
-              l1norm=abs(beta),
+              l2norm=sum(beta^2),
               nbIter=k,
               convergenceFISTA=cv))
 }
@@ -90,7 +88,7 @@ LassoFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
 #################################
 
 prox <- function(x,lambda,nopen){
-  y <- (abs(x)-lambda)*(abs(x)-lambda > 0) * sign(x)
+  y <- x/(1 + 2*lambda)
   y[nopen] <- x[nopen] # Do not penalize these variables
   return(y)
 }
@@ -106,11 +104,11 @@ LeastSqgrad <- function(mu,y,X){
   return(df)
 }
 
-LassoObj <- function(beta,y,X,lambda,nopen){
+RidgeObj <- function(beta,y,X,lambda,nopen){
   if(length(nopen)>0){
-    f <- LeastSq(beta,y,X) + lambda*sum(abs(beta[-nopen]))
+    f <- LeastSq(beta,y,X) + lambda*sum(beta[-nopen]^2)
   } else {
-    f <- LeastSq(beta,y,X) + lambda*sum(abs(beta))
+    f <- LeastSq(beta,y,X) + lambda*sum(beta^2)
   }
   return(f)
 }

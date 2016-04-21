@@ -49,7 +49,7 @@ DataSim <- function(n=2000,p=50,Ry=.5,Rd=.2,rho=.5){
   X <- mvrnorm(n = n, mu=rep(0,p), Sigma)
   # Simulate treatment
   # logit : d <- as.numeric(runif(n) < 1/(1+exp(-X%*%gamma)))
-  d <- as.numeric(runif(n) < dnorm(X%*%gamma))
+  d <- as.numeric(runif(n) < pnorm(X%*%gamma))
   # Simulate outcome
   y <- a*d + X%*%b + rnorm(n)
 

@@ -51,7 +51,7 @@ RidgeFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
     delta <- (1-thetaO)/theta
     
     betaO <- beta
-    beta <- prox(v - eta*LeastSqgrad(v,y,X), lambda*eta,nopen)
+    beta <- proxl2(v - eta*LeastSqgrad(v,y,X), lambda*eta,nopen)
     
     v <- (1-delta)*beta + delta*betaO
     
@@ -75,7 +75,7 @@ RidgeFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
   return(list(beta=as.vector(beta),
               value=RidgeObj(beta,y,X,lambda,nopen),
               loss=LeastSq(beta,y,X),
-              l2norm=sum(beta^2),
+              l1norm=sum(abs(beta)),
               nbIter=k,
               convergenceFISTA=cv))
 }
@@ -87,7 +87,7 @@ RidgeFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
 #################################
 #################################
 
-prox <- function(x,lambda,nopen){
+proxl2 <- function(x,lambda,nopen){
   y <- x/(1 + 2*lambda)
   y[nopen] <- x[nopen] # Do not penalize these variables
   return(y)

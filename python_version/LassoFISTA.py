@@ -1,8 +1,16 @@
 ### FISTA algo
+import numpy as np
 
-def LassoFISTA(y,X,Lambda,W=np.ones(X.shape[0]),betaInit=np.zeros(X.shape[1]),
+def LassoFISTA(y,X,Lambda,W=None,betaInit=None,
                         nopen=np.array([0]),
                         tol=1e-8,maxIter=1000,trace=False):
+  # Setting default values
+  if W==None:
+      W=np.ones(X.shape[0])
+  
+  if betaInit==None:
+      betaInit=np.zeros(X.shape[1])
+  
   # Observation weighting
   y = np.sqrt(W)*y
   X = np.diag(np.sqrt(W)).dot(X)

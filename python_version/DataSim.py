@@ -1,3 +1,8 @@
+### Data Generating Process
+
+import numpy as np
+import math
+
 def DataSim(n=2000,p=50,Ry=.5,Rd=.2,rho=.5):
   ### Covariate correlation coefficients
   Sigma = np.zeros(p*p)
@@ -13,17 +18,17 @@ def DataSim(n=2000,p=50,Ry=.5,Rd=.2,rho=.5):
   ### Treatment variable coefficient
   gamma = np.zeros(p)
     
-  for j in range(1,math.floor(p/2)):
+  for j in range(1,int(p/2)):
     gamma[j] = 1*(-1)**(j) / j**2
     
   ### Outcome equation coefficients
   b = gamma
     
-  for j in range(math.floor(p/2)+1,p):
+  for j in range(int(p/2)+1,p):
     b[j] = (-1)**(j+1) / (p-j+1)**2
   
   ### Adjustment to match R.squared
-  c = math.sqrt((1/gamma.dot(Sigma).dot(gamma))*(Rd/(1-Rd)))
+  c = np.sqrt((1/gamma.dot(Sigma).dot(gamma))*(Rd/(1-Rd)))
   gamma = c*gamma
   
   c = math.sqrt((1/b.dot(Sigma).dot(b))*(Ry/(1-Ry)))

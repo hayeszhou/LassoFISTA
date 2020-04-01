@@ -53,7 +53,6 @@ def LassoFISTA(y,X,Lambda,W=None,betaInit=None,
   l1norm=sum(abs(beta))
   nbIter=k
   convergenceFISTA=cv
-  
   return beta, value, loss, l1norm, nbIter, convergenceFISTA
 
 #################################

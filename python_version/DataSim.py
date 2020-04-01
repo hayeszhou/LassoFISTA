@@ -13,7 +13,7 @@ def DataSim(n=2000,p=50,Ry=.5,Rd=.2,rho=.5):
       Sigma[k,j] = rho**abs(k-j)
 
   ### Treatment effect
-  a = 0
+  a=0
   
   ### Treatment variable coefficient
   gamma = np.zeros(p)
@@ -33,7 +33,6 @@ def DataSim(n=2000,p=50,Ry=.5,Rd=.2,rho=.5):
   
   c = math.sqrt((1/b.dot(Sigma).dot(b))*(Ry/(1-Ry)))
   b = c*b
-
   
   # Simulate covariates
   X = np.random.multivariate_normal(np.zeros(p), Sigma, n)
@@ -47,5 +46,4 @@ def DataSim(n=2000,p=50,Ry=.5,Rd=.2,rho=.5):
 
   # Add the intercept
   X = np.c_[ np.ones((n,1)), X ]
-  
   return X, y, d, b, gamma

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Compute Lasso solution with FISTA Algo
+Compute Lasso solution with FISTA Algo,
+uses numba to speed up computation, about twise as fast
 
 Created on Fri Jul 30 09:55:30 2021
 
@@ -11,9 +12,12 @@ import numpy as np
 from scipy.stats import norm
 import time
 
+from numba import njit
+
 # ------------------------------------------------------------------------
 # Auxiliary functions
 # ------------------------------------------------------------------------
+@njit
 def proximal(x, delta, nopen):
     """
     proximal operator
@@ -26,6 +30,7 @@ def proximal(x, delta, nopen):
     y[nopen] = x[nopen]
     return y
 
+@njit
 def LeastSq(beta, y, X):
     """
     Computes the least squares objective function
@@ -37,6 +42,7 @@ def LeastSq(beta, y, X):
     eps = y - X.dot(beta)
     return np.mean(eps**2)
 
+@njit
 def LeastSqgrad(beta, y, X):
     """
     Computes the least squares gradient
@@ -48,6 +54,7 @@ def LeastSqgrad(beta, y, X):
     d_eps = -2*(y - X.dot(beta)).dot(X) / len(X)
     return d_eps
 
+@njit
 def LassoObj(beta, y, X, delta, nopen):
     """
     Computes Lasso objective function
@@ -59,14 +66,44 @@ def LassoObj(beta, y, X, delta, nopen):
     @param nopen (list of int): variables that should not be penalized
     """
     if len(nopen)>0:
-        return LeastSq(beta, y, X) + delta*sum(np.absolute(np.delete(beta, nopen)))
+        return LeastSq(beta, y, X) + delta*np.sum(np.absolute(np.delete(beta, nopen)))
     else:
-        return LeastSq(beta, y, X) + delta*sum(np.absolute(beta))
+        return LeastSq(beta, y, X) + delta*np.sum(np.absolute(beta))
+     
+@njit 
+def reweight(X, W):
+    """
+    reweights observations
     
+    @param X (np.array):
+    @param W (np.array): one-dimensional, of length X.shape[1]
+    """
+    return np.diag(np.sqrt(W)).dot(X)
+
 # ------------------------------------------------------------------------
-# Main function
+# DGP
 # ------------------------------------------------------------------------
-def LassoFISTA(y, X, Lambda, W=None, betaInit=None, nopen=np.array([0]), tol=1e-8, maxIter=1000, trace=False):
+def DGP(n, p, rho=.4):
+    Sigma = np.zeros([p, p])
+    for k in range(p):
+        for j in range(p):
+            Sigma[k,j] = rho**np.absolute(k-j)
+    
+    beta = np.zeros(p)
+    for j in range(1, int(p/2)):
+        beta[j] = 1*(-1)**(j) / j**2
+    
+    # SIMULATE
+    X = np.random.multivariate_normal(np.zeros(p), Sigma, n)
+    y = X.dot(beta) + np.random.normal(0, 1, n)
+    X = np.c_[np.ones((n, 1)), X]
+    return y, X
+
+# ------------------------------------------------------------------------
+# Main functions
+# ------------------------------------------------------------------------
+@njit
+def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, trace=False):
     """
     Computes the Lasso solution using FISTA algorithm
     
@@ -79,18 +116,10 @@ def LassoFISTA(y, X, Lambda, W=None, betaInit=None, nopen=np.array([0]), tol=1e-
     @param tol (float): tolerance
     @param maxIter (int): maximum number of iterations
     @param trace (bool): print results
+
     """
-    # Setting default values
-    if W is None:
-        W = np.ones(len(X))
-        
-    if betaInit==None:
-        betaInit = np.zeros(X.shape[1])
+    y, X = reweight(y, W), reweight(X, W)
     
-    # Observation weighting
-    y = np.sqrt(W)*y
-    X = np.diag(np.sqrt(W)).dot(X)
-  
     ### Set Algo. Values
     eta = 1/np.max(2* np.linalg.eigvals(X.T.dot(X))/len(X))
     theta = 1
@@ -121,6 +150,35 @@ def LassoFISTA(y, X, Lambda, W=None, betaInit=None, nopen=np.array([0]), tol=1e-
         if k > maxIter:
             print("Max. number of iterations reach in Lasso minimization.")
             break
+    return beta, convergenceFISTA
+
+def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, **kwargs):
+    """
+    Computes the Lasso solution using FISTA algorithm
+    
+    @param y (np.array): outcome
+    @param X (np.array): regressors
+    @param Lambda (float): Lasso penalty
+    @param nopen (np.array): default value does not penalize the constant
+    @param tol (float): tolerance
+    @param maxIter (int): maximum number of iterations
+    @param trace (bool): print results
+    @param W
+    @param betaInit (np.array): initial values
+    """
+    # Setting default values
+    W = kwargs.get('W', np.ones(len(X)))
+    betaInit =  kwargs.get('betaInit', np.zeros(X.shape[1]))
+    
+    beta, convergenceFISTA = computeLasso(y=y,
+                                          X=X,
+                                          Lambda=Lambda,
+                                          W=W,
+                                          betaInit=betaInit,
+                                          nopen=nopen,
+                                          tol=tol,
+                                          maxIter=maxIter,
+                                          trace=trace)
     
     objFuncVal = LassoObj(beta, y, X, Lambda, nopen)
     sqLossVal = LeastSq(beta, y, X)
@@ -129,30 +187,22 @@ def LassoFISTA(y, X, Lambda, W=None, betaInit=None, nopen=np.array([0]), tol=1e-
 
 
 if __name__ == '__main__':
-    n = 100000
-    p = 5000
+    n = 10000
+    p = 500
     
-    # PARAM DEF
-    rho = .4
-    Sigma = np.zeros([p, p])
-    for k in range(p):
-        for j in range(p):
-            Sigma[k,j] = rho**np.absolute(k-j)
-    
-    beta = np.zeros(p)
-    for j in range(1, int(p/2)):
-        beta[j] = 1*(-1)**(j) / j**2
-    
-    # SIMULATE
-    X = np.random.multivariate_normal(np.zeros(p), Sigma, n)
-    y = X.dot(beta) + np.random.normal(0, 1, n)
-    X = np.c_[np.ones((n,1)), X]
+    y, X = DGP(n=n, p=p)
     
     # COMPUTE LASSO
-    n, p = X.shape
-    c, g = 2, .1/np.log(max(n,p))
-    Lambda = c*norm.ppf(1-.5*g/p)/np.sqrt(n)
+    c, g = 2, .1/np.log(np.max(X.shape))
+    Lambda = c*norm.ppf(1-.5*g/len(X))/np.sqrt(len(X))
     
+    print('First time (includes compiling)')
+    start_time = time.time()
+    betaL, valL, lossL, l1normL, cvFL = LassoFISTA(y, X, Lambda, nopen=np.array([0]), tol=1e-6, maxIter=1e6, trace=True)
+    print("--- %s seconds ---" % (time.time() - start_time))
+    
+    print('Second time')
+    y, X = DGP(n=n, p=p)
     start_time = time.time()
     betaL, valL, lossL, l1normL, cvFL = LassoFISTA(y, X, Lambda, nopen=np.array([0]), tol=1e-6, maxIter=1e6, trace=True)
     print("--- %s seconds ---" % (time.time() - start_time))

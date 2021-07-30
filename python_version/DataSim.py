@@ -5,9 +5,7 @@ import math
 
 def DataSim(n=2000,p=50,Ry=.5,Rd=.2,rho=.5):
   ### Covariate correlation coefficients
-  Sigma = np.zeros(p*p)
-  Sigma.shape = (p,p)
-  
+  Sigma = np.zeros([p, p])
   for k in range(0,p):
     for j in range(0,p):
       Sigma[k,j] = rho**abs(k-j)

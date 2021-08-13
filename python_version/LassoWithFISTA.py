@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Compute Lasso solution with FISTA Algo,
-uses numba to speed up computation, about twise as fast
+uses numba to speed up computation, about twice as fast
 
 Created on Fri Jul 30 09:55:30 2021
 
@@ -15,7 +15,7 @@ import time
 from numba import njit
 
 # ------------------------------------------------------------------------
-# Auxiliary functions
+# AUXILIARY FUNCTIONS
 # ------------------------------------------------------------------------
 @njit
 def proximal(x, delta, nopen):
@@ -39,7 +39,7 @@ def LeastSq(beta, y, X):
     @param y (np.array): outcome
     @param X (np.array): regressors
     """
-    eps = y - X.dot(beta)
+    eps = y - X @ beta
     return np.mean(eps**2)
 
 @njit
@@ -51,7 +51,7 @@ def LeastSqgrad(beta, y, X):
     @param y (np.array): outcome
     @param X (np.array): regressors
     """
-    d_eps = -2*(y - X.dot(beta)).dot(X) / len(X)
+    d_eps = -2*(y - X @ beta) @ X / len(X)
     return d_eps
 
 @njit
@@ -78,7 +78,7 @@ def reweight(X, W):
     @param X (np.array):
     @param W (np.array): one-dimensional, of length X.shape[1]
     """
-    return np.diag(np.sqrt(W)).dot(X)
+    return np.diag(np.sqrt(W)) @ X
 
 # ------------------------------------------------------------------------
 # DGP
@@ -95,12 +95,12 @@ def DGP(n, p, rho=.4):
     
     # SIMULATE
     X = np.random.multivariate_normal(np.zeros(p), Sigma, n)
-    y = X.dot(beta) + np.random.normal(0, 1, n)
+    y = X @ beta + np.random.normal(0, 1, n)
     X = np.c_[np.ones((n, 1)), X]
     return y, X
 
 # ------------------------------------------------------------------------
-# Main functions
+# MAIN FUNCTIONS
 # ------------------------------------------------------------------------
 @njit
 def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, trace=False):
@@ -116,12 +116,11 @@ def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, t
     @param tol (float): tolerance
     @param maxIter (int): maximum number of iterations
     @param trace (bool): print results
-
     """
     y, X = reweight(y, W), reweight(X, W)
     
     ### Set Algo. Values
-    eta = 1/np.max(2* np.linalg.eigvals(X.T.dot(X))/len(X))
+    eta = 1/np.max(2* np.linalg.eigvals(np.transpose(X) @ X)/len(X))
     theta = 1
     theta_0 = theta
     beta, v = betaInit, betaInit
@@ -142,19 +141,19 @@ def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, t
         # Show objective function value
         if trace & (k%100 == 0):
             print("Objective Func. Value at iteration",k,":",LassoObj(beta,y,X,Lambda,nopen))
-        # Break if convergence or max nb. of iter reached
         if np.absolute(LassoObj(beta,y,X,Lambda,nopen)-LassoObj(beta_0,y,X,Lambda,nopen)) < tol:
+            # Break if convergence
             convergenceFISTA = True
             break
-    
         if k > maxIter:
+            # Break if max nb. of iterations reached
             print("Max. number of iterations reach in Lasso minimization.")
             break
     return beta, convergenceFISTA
 
 def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, **kwargs):
     """
-    Computes the Lasso solution using FISTA algorithm
+    Wrapper around Lasso solution using FISTA algorithm
     
     @param y (np.array): outcome
     @param X (np.array): regressors
@@ -170,6 +169,7 @@ def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, **k
     W = kwargs.get('W', np.ones(len(X)))
     betaInit =  kwargs.get('betaInit', np.zeros(X.shape[1]))
     
+    # Compute solution
     beta, convergenceFISTA = computeLasso(y=y,
                                           X=X,
                                           Lambda=Lambda,

@@ -1,10 +1,8 @@
-﻿### Lasso FISTA: main example
-### 15 fevrier 2016
-### J L'Hour
+#' Lasso FISTA -- main example
+#' 15 fevrier 2016
+#' @author : jeremylhour 
 
 ### Set working directory
-setwd("//ulysse/users/JL.HOUR/1A_These/LassoFISTA") 
-
 rm(list=ls())
 set.seed(30031987)
 
@@ -12,18 +10,16 @@ set.seed(30031987)
 ### 0. Settings
 
 ### Load packages
-
+package_list = c("MASS", "reshape2", "ggplot2", "causalsens")
+lapply(package_list, require, character.only = TRUE)
 
 ### Load user-defined functions
-source("functions/DataSim_LassoTest.R") 
-source("functions/LassoFISTA.R")
-
-library("MASS")
-library("reshape2")
-library("ggplot2")
+source("R_version/src/DataSim_LassoTest.R")
+source("R_version/src/LassoFISTA.R")
 
 ### 1. Lalonde Dataset
-load("dataset/Lalondedata_Unscaled.R")
+data = data(lalonde.psid)
+data = lalonde.psid
 
 X <- data$X
 W_Lasso <- as.vector(data$W)

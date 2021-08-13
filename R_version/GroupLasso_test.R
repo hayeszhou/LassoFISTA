@@ -1,9 +1,9 @@
-### group lasso test
-### 04/06/2020
-### Jérémy L'Hour
+#' Group Lasso -- Test script
+#' 04/06/2020
+#' @author : jeremylhour
 
 library('MASS')
-source("functions/group_lasso.R")
+source("R_version/src/group_lasso.R")
 
 ### SIMULATE DATA
 set.seed(999)

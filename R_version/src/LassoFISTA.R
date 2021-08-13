@@ -23,63 +23,63 @@
 #' @return nbIter Number of iterations necessary for convergence.
 #' @return ConvergenceFISTA 0 if convergence, -555 if not.
 #' 
-#' @author Jeremy Lhour
+#' @author jeremylhour
 
 
 LassoFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
                         nopen=NULL,lambda,
                         tol=1e-8,maxIter=1000,trace=F){
   # Observation weighting
-  W <- as.vector(W)
-  y <- sqrt(W)*y
-  X <- diag(sqrt(W)) %*% as.matrix(X)
+  W = as.vector(W)
+  y = sqrt(W)*y
+  X = diag(sqrt(W)) %*% as.matrix(X)
   
   ### Set Algo. Values
-  eta <- 1/max(2*eigen(t(X)%*%X)$values/nrow(X))
-  theta <- 1
-  thetaO <- theta
-  beta <- betaInit
-  v <- beta
-  cv <- 0
+  eta = 1/max(2*eigen(t(X)%*%X)$values/nrow(X))
+  theta = 1
+  thetaO = theta
+  beta = betaInit
+  v = beta
+  convergence = FALSE
   
-  k <- 0
+  k = 0
   repeat{
-    k <- k+1
+    k = k+1
     
-    thetaO <- theta
-    theta <- (1+sqrt(1+4*thetaO^2))/2
-    delta <- (1-thetaO)/theta
+    thetaO = theta
+    theta = (1+sqrt(1+4*thetaO^2))/2
+    delta = (1-thetaO)/theta
     
-    betaO <- beta
-    beta <- prox(v - eta*LeastSqgrad(v,y,X), lambda*eta,nopen)
+    betaO = beta
+    beta = prox(v - eta*LeastSqgrad(v,y,X), lambda*eta,nopen)
     
-    v <- (1-delta)*beta + delta*betaO
+    v = (1-delta)*beta + delta*betaO
     
     # Show objective function value
-    if(trace==T & k%%100 == 0){ print(paste("Objective Func. Value at iteration",k,":",LassoObj(beta,y,X,lambda,nopen))) }
+    if(trace==T & k%%100 == 0){
+      print(paste("Objective Func. Value at iteration",k,":",LassoObj(beta,y,X,lambda,nopen)))
+      }
     
     # Break if diverges
     if(is.na(LassoObj(beta,y,X,lambda,nopen) - LassoObj(betaO,y,X,lambda,nopen))){
-      cv <- -555
       print("LassoFISTA did not converge")
       break
-    } else if(sum(abs(LassoObj(beta,y,X,lambda,nopen)-LassoObj(betaO,y,X,lambda,nopen))) < tol || k > maxIter) break
-    
-    # if(sum(abs(beta-betaO)) < tol || k > maxIter) break
+    } else if(k > maxIter){
+      print("Max. number of iterations reach in Lasso minimization.")
+      break
+    } else if(sum(abs(LassoObj(beta,y,X,lambda,nopen)-LassoObj(betaO,y,X,lambda,nopen))) < tol){
+      convergence = TRUE
+      break
+    }
     
   }
-  # line 66 has been change to change the stopping criterion
-  if(k > maxIter){
-    print("Max. number of iterations reach in Lasso minimization.")
-    cv <- -555
-  } 
   
   return(list(beta=as.vector(beta),
               value=LassoObj(beta,y,X,lambda,nopen),
               loss=LeastSq(beta,y,X),
               l1norm=sum(abs(beta)),
               nbIter=k,
-              convergenceFISTA=cv))
+              convergenceFISTA=convergence))
 }
 
 
@@ -90,27 +90,27 @@ LassoFISTA <- function(betaInit=rep(0,ncol(X)),y,X,W=rep(1,nrow(X)),
 #################################
 
 prox <- function(x,lambda,nopen){
-  y <- (abs(x)-lambda)*(abs(x)-lambda > 0) * sign(x)
-  y[nopen] <- x[nopen] # Do not penalize these variables
+  y = (abs(x)-lambda)*(abs(x)-lambda > 0) * sign(x)
+  y[nopen] = x[nopen] # Do not penalize these variables
   return(y)
 }
 
 LeastSq <- function(mu,y,X){
-  X <- as.matrix(X)
+  X = as.matrix(X)
   return(mean((y - X%*%mu)^2))
 }
 
 LeastSqgrad <- function(mu,y,X){
-  X <- as.matrix(X)
-  df <- as.vector(-2*(t(y - X%*%mu)%*%X) / nrow(X))
+  X = as.matrix(X)
+  df = as.vector(-2*(t(y - X%*%mu)%*%X) / nrow(X))
   return(df)
 }
 
 LassoObj <- function(beta,y,X,lambda,nopen){
   if(length(nopen)>0){
-    f <- LeastSq(beta,y,X) + lambda*sum(abs(beta[-nopen]))
+    f = LeastSq(beta,y,X) + lambda*sum(abs(beta[-nopen]))
   } else {
-    f <- LeastSq(beta,y,X) + lambda*sum(abs(beta))
+    f = LeastSq(beta,y,X) + lambda*sum(abs(beta))
   }
   return(f)
 }

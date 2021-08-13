@@ -1,24 +1,22 @@
-### Lasso FISTA: main example
-### 15 fevrier 2016, edited 24 fevrier
-### J L'Hour
+#' Lasso FISTA: main example
+#' 15 fevrier 2016, edited 24 fevrier
+#' @author : jeremylhour
 
 ### Set working directory
 rm(list=ls())
 set.seed(30031989)
-setwd("//ulysse/users/JL.HOUR/1A_These/LassoFISTA") 
-
+setwd('LassoFISTA/')
 
 ### 0. Settings
 
 ### Load packages
-library("MASS")
-library("reshape2")
-library("ggplot2")
+package_list = c("MASS", "reshape2", "ggplot2")
+lapply(package_list, require, character.only = TRUE)
 
 ### Load user-defined functions
-source("functions/DataSim.R") 
-source("functions/LassoFISTA.R")
-source("functions/RidgeFISTA.R")
+source("R_version/src/DataSim.R") 
+source("R_version/src/LassoFISTA.R")
+source("R_version/src/RidgeFISTA.R")
 
 
 #####################

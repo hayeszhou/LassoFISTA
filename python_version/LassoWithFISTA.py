@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Compute Lasso solution with FISTA Algo,
-uses numba to speed up computation, about twice as fast
+Compute Lasso solution with FISTA Algo
+
+NB : numba does not seem to improve the performance.
 
 Created on Fri Jul 30 09:55:30 2021
 
@@ -10,7 +11,9 @@ Created on Fri Jul 30 09:55:30 2021
 """
 import numpy as np
 from scipy.stats import norm
-import time
+from time import time
+
+from tqdm import tqdm
 
 from numba import njit
 
@@ -22,7 +25,7 @@ def proximal(x, delta, nopen):
     """
     proximal operator
     
-    @param x (np.array):
+    @param x (np.array): coefficient
     @param delta (float): lasso penalty
     @param nopen (list of int): variables that should not be penalized
     """
@@ -51,8 +54,7 @@ def LeastSqgrad(beta, y, X):
     @param y (np.array): outcome
     @param X (np.array): regressors
     """
-    d_eps = -2*(y - X @ beta) @ X / len(X)
-    return d_eps
+    return -2*(y - X @ beta) @ X / len(X)
 
 @njit
 def LassoObj(beta, y, X, delta, nopen):
@@ -83,20 +85,32 @@ def reweight(X, W):
 # ------------------------------------------------------------------------
 # DGP
 # ------------------------------------------------------------------------
+@njit
 def DGP(n, p, rho=.4):
-    Sigma = np.zeros([p, p])
+    """
+    DGP :
+        simulates some data
+        
+    @param n (int): number of observations
+    @param p (int): dimension
+    @param rho (float): correaltion coefficient between two consecutive error terms
+    """
+    Sigma = np.zeros((p, p))
     for k in range(p):
         for j in range(p):
             Sigma[k,j] = rho**np.absolute(k-j)
+    Sigma_chol = np.linalg.cholesky(Sigma)
     
     beta = np.zeros(p)
     for j in range(1, int(p/2)):
         beta[j] = 1*(-1)**(j) / j**2
     
     # SIMULATE
-    X = np.random.multivariate_normal(np.zeros(p), Sigma, n)
-    y = X @ beta + np.random.normal(0, 1, n)
-    X = np.c_[np.ones((n, 1)), X]
+    #X = np.random.multivariate_normal(np.zeros(p), Sigma, n)
+    draws = np.array([np.random.normal() for b in range(n*p)])
+    X = np.reshape(draws, (n, p)) @ np.transpose(Sigma_chol)
+    y = X @ beta + np.array([np.random.normal() for b in range(n)])
+    X = np.hstack((np.ones((n, 1)), X))
     return y, X
 
 # ------------------------------------------------------------------------
@@ -115,7 +129,7 @@ def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, t
     @param nopen (np.array): default value does not penalize the constant
     @param tol (float): tolerance
     @param maxIter (int): maximum number of iterations
-    @param trace (bool): print results
+    @param trace (bool): if True, print results
     """
     y, X = reweight(y, W), reweight(X, W)
     
@@ -127,7 +141,7 @@ def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, t
     convergenceFISTA = False
   
     k = 0
-    while True:
+    while k <= maxIter:
         k += 1
         theta_0 = theta
         theta = (1+np.sqrt(1+4*theta_0**2))/2
@@ -145,13 +159,9 @@ def computeLasso(y, X, Lambda, W, betaInit, nopen=[0], tol=1e-8, maxIter=1000, t
             # Break if convergence
             convergenceFISTA = True
             break
-        if k > maxIter:
-            # Break if max nb. of iterations reached
-            print("Max. number of iterations reach in Lasso minimization.")
-            break
     return beta, convergenceFISTA
 
-def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, **kwargs):
+def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, W=None, betaInit=None):
     """
     Wrapper around Lasso solution using FISTA algorithm
     
@@ -166,8 +176,10 @@ def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, **k
     @param betaInit (np.array): initial values
     """
     # Setting default values
-    W = kwargs.get('W', np.ones(len(X)))
-    betaInit =  kwargs.get('betaInit', np.zeros(X.shape[1]))
+    if W is None:
+        W = np.ones(len(X))
+    if betaInit is None:
+        betaInit =  np.zeros(X.shape[1])
     
     # Compute solution
     beta, convergenceFISTA = computeLasso(y=y,
@@ -187,6 +199,7 @@ def LassoFISTA(y, X, Lambda, nopen=[0], tol=1e-8, maxIter=1000, trace=False, **k
 
 
 if __name__ == '__main__':
+    np.random.seed(999)
     n = 10000
     p = 500
     
@@ -197,12 +210,18 @@ if __name__ == '__main__':
     Lambda = c*norm.ppf(1-.5*g/len(X))/np.sqrt(len(X))
     
     print('First time (includes compiling)')
-    start_time = time.time()
+    start_time = time()
     betaL, valL, lossL, l1normL, cvFL = LassoFISTA(y, X, Lambda, nopen=np.array([0]), tol=1e-6, maxIter=1e6, trace=True)
-    print("--- %s seconds ---" % (time.time() - start_time))
+    print("--- {:.2f} seconds ---".format(time() - start_time))
     
     print('Second time')
     y, X = DGP(n=n, p=p)
-    start_time = time.time()
+    start_time = time()
     betaL, valL, lossL, l1normL, cvFL = LassoFISTA(y, X, Lambda, nopen=np.array([0]), tol=1e-6, maxIter=1e6, trace=True)
-    print("--- %s seconds ---" % (time.time() - start_time))
+    print("--- {:.2f} seconds ---".format(time() - start_time))
+    
+    print("Repeated 100 times")
+    start_time = time()
+    for b in tqdm(range(100)):
+        betaL, valL, lossL, l1normL, cvFL = LassoFISTA(y, X, Lambda, nopen=np.array([0]), tol=1e-6, maxIter=1e6, trace=True)
+    print("--- {:.2f} seconds ---".format(time() - start_time))
